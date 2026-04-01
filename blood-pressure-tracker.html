@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2563eb">
+<title>血圧手帳</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-900);
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.header {
+  background: var(--primary);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.header h1 { font-size: 1.2rem; font-weight: 700; }
+.header small { font-size: 0.7rem; opacity: 0.8; display: block; }
+.settings-btn {
+  background: rgba(255,255,255,0.2);
+  border: none; color: white;
+  padding: 8px 12px; border-radius: 8px;
+  cursor: pointer; font-size: 0.875rem;
+}
+.tab-bar {
+  display: flex; background: white;
+  border-bottom: 1px solid var(--gray-200);
+  position: sticky; top: 57px; z-index: 99;
+}
+.tab {
+  flex: 1; padding: 10px 4px; text-align: center;
+  font-size: 0.75rem; color: var(--gray-500);
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+.tab-icon { font-size: 1.1rem; display: block; margin-bottom: 1px; }
+.content { padding: 14px; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.card {
+  background: white; border-radius: 12px;
+  padding: 16px; margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.card-title {
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--gray-500); text-transform: uppercase;
+  letter-spacing: 0.05em; margin-bottom: 12px;
+}
+.upload-area {
+  border: 2px dashed var(--gray-300);
+  border-radius: 12px; padding: 32px 16px;
+  text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--gray-50);
+}
+.upload-area:hover, .upload-area.dragover {
+  border-color: var(--primary); background: var(--primary-light);
+}
+.upload-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.upload-text { color: var(--gray-700); font-weight: 600; margin-bottom: 4px; }
+.upload-sub { color: var(--gray-500); font-size: 0.8rem; }
+img.preview {
+  width: 100%; max-height: 280px; object-fit: contain;
+  border-radius: 8px; margin-bottom: 12px;
+}
+.btn {
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 13px 20px; border-radius: 10px;
+  font-size: 0.9375rem; font-weight: 700;
+  cursor: pointer; border: none; transition: all 0.2s;
+  width: 100%; font-family: inherit;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:disabled { background: var(--gray-300); cursor: not-allowed; }
+.btn-success { background: var(--success); color: white; }
+.btn-outline {
+  background: white; color: var(--primary);
+  border: 1.5px solid var(--primary);
+}
+.btn-sm { padding: 7px 14px; font-size: 0.8125rem; width: auto; }
+.btn-row { display: flex; gap: 8px; }
+.form-group { margin-bottom: 12px; }
+label.lbl {
+  display: block; font-size: 0.875rem; font-weight: 700;
+  color: var(--gray-700); margin-bottom: 4px;
+}
+.input {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid var(--gray-300); border-radius: 8px;
+  font-size: 1rem; font-family: inherit;
+  -webkit-appearance: none; transition: border-color 0.2s;
+}
+.input:focus { outline: none; border-color: var(--primary); }
+textarea.input { resize: vertical; min-height: 60px; }
+.m-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 14px;
+}
+.m-box {
+  text-align: center; padding: 12px 8px;
+  border-radius: 10px; border: 2px solid var(--gray-200);
+}
+.m-box.sys { border-color: #fca5a5; background: #fff1f2; }
+.m-box.dia { border-color: #93c5fd; background: #eff6ff; }
+.m-box.pul { border-color: #86efac; background: #f0fdf4; }
+.m-lbl { font-size: 0.65rem; font-weight: 700; color: var(--gray-500); margin-bottom: 4px; }
+.m-input {
+  width: 100%; border: none; background: transparent;
+  font-size: 2rem; font-weight: 900; text-align: center;
+  font-family: inherit; -webkit-appearance: none;
+  appearance: none; padding: 0;
+}
+.m-box.sys .m-input { color: var(--danger); }
+.m-box.dia .m-input { color: var(--primary); }
+.m-box.pul .m-input { color: var(--success); }
+.m-input:focus { outline: none; }
+.m-unit { font-size: 0.65rem; color: var(--gray-500); }
+.timing-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.t-opt {
+  padding: 7px 12px; border-radius: 20px;
+  border: 1.5px solid var(--gray-300);
+  background: white; cursor: pointer; font-size: 0.8125rem;
+  font-family: inherit; transition: all 0.2s;
+}
+.t-opt.sel {
+  border-color: var(--primary); background: var(--primary-light);
+  color: var(--primary); font-weight: 700;
+}
+.record-item {
+  background: white; border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  display: flex; align-items: center; gap: 12px;
+}
+.r-date .date { font-size: 0.875rem; font-weight: 700; }
+.r-date .time { font-size: 0.75rem; color: var(--gray-500); }
+.r-badge {
+  font-size: 0.65rem; padding: 2px 7px;
+  border-radius: 10px; background: var(--primary-light);
+  color: var(--primary); font-weight: 700; margin-top: 3px;
+  display: inline-block;
+}
+.r-vals { flex: 1; display: flex; align-items: center; gap: 6px; }
+.r-val { text-align: center; }
+.r-val .v { font-size: 1.2rem; font-weight: 900; }
+.r-val .l { font-size: 0.6rem; color: var(--gray-500); }
+.r-val.s .v { color: var(--danger); }
+.r-val.d .v { color: var(--primary); }
+.r-val.p .v { color: var(--success); }
+.sep { color: var(--gray-300); font-size: 1.2rem; }
+.del-btn {
+  background: none; border: none;
+  color: var(--gray-300); cursor: pointer;
+  font-size: 1.2rem; padding: 4px;
+  transition: color 0.2s; line-height: 1;
+}
+.del-btn:hover { color: var(--danger); }
+.period-filter { display: flex; gap: 8px; margin-bottom: 14px; }
+.p-btn {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1.5px solid var(--gray-300);
+  background: white; cursor: pointer;
+  font-size: 0.8rem; font-weight: 700;
+  transition: all 0.2s; color: var(--gray-700);
+  font-family: inherit;
+}
+.p-btn.active { border-color: var(--primary); background: var(--primary); color: white; }
+.chart-wrap { position: relative; height: 240px; }
+.legend { display: flex; gap: 14px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.s-box { text-align: center; padding: 12px 8px; border-radius: 10px; }
+.s-box.sys { background: #fff1f2; }
+.s-box.dia { background: #eff6ff; }
+.s-box.pul { background: #f0fdf4; }
+.s-lbl { font-size: 0.65rem; font-weight: 700; color: var(--gray-500); margin-bottom: 4px; }
+.s-val { font-size: 1.75rem; font-weight: 900; line-height: 1; }
+.s-box.sys .s-val { color: var(--danger); }
+.s-box.dia .s-val { color: var(--primary); }
+.s-box.pul .s-val { color: var(--success); }
+.s-range { font-size: 0.65rem; color: var(--gray-500); margin-top: 2px; }
+.doc-header { text-align: center; padding: 18px; border-bottom: 1px solid var(--gray-200); }
+.doc-header h2 { font-size: 1.1rem; }
+.doc-header .dr { color: var(--gray-500); font-size: 0.8rem; margin-top: 3px; }
+.doc-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--gray-200); border-top: 1px solid var(--gray-200); border-bottom: 1px solid var(--gray-200); }
+.doc-stat { background: white; padding: 14px 8px; text-align: center; }
+.doc-stat .dl { font-size: 0.65rem; font-weight: 700; color: var(--gray-500); }
+.doc-stat .dv { font-size: 2rem; font-weight: 900; line-height: 1.1; }
+.doc-stat.sys .dv { color: var(--danger); }
+.doc-stat.dia .dv { color: var(--primary); }
+.doc-stat.pul .dv { color: var(--success); }
+.doc-stat .ds { font-size: 0.65rem; color: var(--gray-500); }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.doc-table th { padding: 8px 6px; background: var(--gray-50); font-size: 0.7rem; color: var(--gray-500); font-weight: 700; text-align: center; }
+.doc-table td { padding: 7px 6px; border-bottom: 1px solid var(--gray-100); text-align: center; }
+.doc-table td:first-child { text-align: left; color: var(--gray-700); }
+.sv { color: var(--danger); font-weight: 800; }
+.dv2 { color: var(--primary); font-weight: 800; }
+.pv { color: var(--success); font-weight: 800; }
+.bp-badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 12px; font-size: 0.75rem; font-weight: 700;
+  margin-top: 6px;
+}
+.bp-normal { background: #dcfce7; color: #166534; }
+.bp-elevated { background: #fef9c3; color: #854d0e; }
+.bp-high1 { background: #fed7aa; color: #9a3412; }
+.bp-high2 { background: #fecaca; color: #7f1d1d; }
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 1000;
+  align-items: center; justify-content: center; padding: 16px;
+}
+.modal-overlay.open { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 22px; width: 100%; max-width: 400px; }
+.modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 24px; color: var(--gray-500); font-size: 0.9rem;
+}
+.spinner {
+  width: 20px; height: 20px; border: 2px solid var(--gray-200);
+  border-top-color: var(--primary); border-radius: 50%;
+  animation: spin 0.8s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--gray-900); color: white;
+  padding: 11px 20px; border-radius: 24px;
+  font-size: 0.875rem; font-weight: 700;
+  z-index: 2000; transition: transform 0.3s; white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.empty { text-align: center; padding: 40px 20px; color: var(--gray-500); }
+.empty-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.note-line { font-size: 0.75rem; color: var(--gray-500); padding: 0 14px 10px; margin-top: -8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <small>血圧管理アプリ</small>
+    <h1>血圧手帳</h1>
+  </div>
+  <button class="settings-btn" onclick="openSettings()">⚙️ 設定</button>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('record')"><span class="tab-icon">📷</span>記録</div>
+  <div class="tab" onclick="switchTab('history')"><span class="tab-icon">📋</span>履歴</div>
+  <div class="tab" onclick="switchTab('chart')"><span class="tab-icon">📈</span>グラフ</div>
+  <div class="tab" onclick="switchTab('doctor')"><span class="tab-icon">🏥</span>医師用</div>
+</div>
+
+<div class="content">
+
+  <!-- 記録 -->
+  <div class="tab-content active" id="tab-record">
+    <div class="card">
+      <div class="card-title">写真から自動読み取り</div>
+      <div id="upload-area" class="upload-area"
+        onclick="triggerFile()"
+        ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="onDrop(event)">
+        <div class="upload-icon">📸</div>
+        <div class="upload-text">タップして写真を選択</div>
+        <div class="upload-sub">ドラッグ＆ドロップも可<br>スマホではカメラ撮影も選べます</div>
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFileSelect(event)">
+
+      <div id="preview-area" style="display:none; margin-top:12px;">
+        <img id="preview-img" class="preview" alt="">
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="analyzeImage()">🔍 AIで自動読み取り</button>
+          <button class="btn btn-outline btn-sm" onclick="resetUpload()">やり直す</button>
+        </div>
+      </div>
+
+      <div id="loading-area" style="display:none;">
+        <div class="loading">
+          <div class="spinner"></div>
+          <span>AIが血圧値を読み取り中...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="entry-form" style="display:none;">
+      <div class="card-title">測定値を確認・修正</div>
+      <div class="m-grid">
+        <div class="m-box sys">
+          <div class="m-lbl">最高血圧</div>
+          <input type="number" id="f-sys" class="m-input" min="50" max="300" placeholder="--">
+          <div class="m-unit">mmHg</div>
+        </div>
+        <div class="m-box dia">
+          <div class="m-lbl">最低血圧</div>
+          <input type="number" id="f-dia" class="m-input" min="30" max="200" placeholder="--">
+          <div class="m-unit">mmHg</div>
+        </div>
+        <div class="m-box pul">
+          <div class="m-lbl">脈拍</div>
+          <input type="number" id="f-pul" class="m-input" min="30" max="250" placeholder="--">
+          <div class="m-unit">拍/分</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="lbl">日時</label>
+        <input type="datetime-local" id="f-date" class="input">
+      </div>
+      <div class="form-group">
+        <label class="lbl">測定タイミング</label>
+        <div class="timing-row" id="timing-row">
+          <button class="t-opt" onclick="selTiming(this,'起床後')">起床後</button>
+          <button class="t-opt" onclick="selTiming(this,'朝食後')">朝食後</button>
+          <button class="t-opt" onclick="selTiming(this,'昼')">昼</button>
+          <button class="t-opt" onclick="selTiming(this,'夕食後')">夕食後</button>
+          <button class="t-opt" onclick="selTiming(this,'就寝前')">就寝前</button>
+          <button class="t-opt" onclick="selTiming(this,'その他')">その他</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="lbl">メモ（任意）</label>
+        <textarea id="f-note" class="input" rows="2" placeholder="気になることがあれば..."></textarea>
+      </div>
+      <button class="btn btn-success" onclick="saveRecord()">✓ 記録を保存する</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">手動入力</div>
+      <button class="btn btn-outline" onclick="showForm(null,null,null)">✏️ 数値を直接入力する</button>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="tab-content" id="tab-history">
+    <div class="period-filter">
+      <button class="p-btn active" onclick="setHistPeriod('week',this)">1週間</button>
+      <button class="p-btn" onclick="setHistPeriod('month',this)">1ヶ月</button>
+      <button class="p-btn" onclick="setHistPeriod('3months',this)">3ヶ月</button>
+      <button class="p-btn" onclick="setHistPeriod('all',this)">すべて</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
+
+  <!-- グラフ -->
+  <div class="tab-content" id="tab-chart">
+    <div class="period-filter">
+      <button class="p-btn active" onclick="setChartPeriod('week',this)">1週間</button>
+      <button class="p-btn" onclick="setChartPeriod('month',this)">1ヶ月</button>
+      <button class="p-btn" onclick="setChartPeriod('3months',this)">3ヶ月</button>
+    </div>
+    <div class="card">
+      <div class="card-title">血圧・脈拍の推移</div>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:#dc2626"></div>最高血圧</div>
+        <div class="leg"><div class="leg-dot" style="background:#2563eb"></div>最低血圧</div>
+        <div class="leg"><div class="leg-dot" style="background:#16a34a"></div>脈拍</div>
+      </div>
+      <div class="chart-wrap"><canvas id="bp-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">期間の平均値</div>
+      <div class="stats-grid">
+        <div class="s-box sys">
+          <div class="s-lbl">最高血圧 平均</div>
+          <div class="s-val" id="avg-sys">--</div>
+          <div class="s-range" id="rng-sys"></div>
+        </div>
+        <div class="s-box dia">
+          <div class="s-lbl">最低血圧 平均</div>
+          <div class="s-val" id="avg-dia">--</div>
+          <div class="s-range" id="rng-dia"></div>
+        </div>
+        <div class="s-box pul">
+          <div class="s-lbl">脈拍 平均</div>
+          <div class="s-val" id="avg-pul">--</div>
+          <div class="s-range" id="rng-pul"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 医師用 -->
+  <div class="tab-content" id="tab-doctor">
+    <div class="card" style="padding:0;overflow:hidden;" id="doc-card"></div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-outline" onclick="openPeriodModal()">📅 表示期間を変更</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <div class="modal-title">⚙️ 設定</div>
+    <div class="form-group">
+      <label class="lbl">お名前（任意）</label>
+      <input type="text" id="s-name" class="input" placeholder="山田 太郎">
+    </div>
+    <div class="form-group">
+      <label class="lbl">Gemini API キー（無料）</label>
+      <input type="password" id="s-apikey" class="input" placeholder="AIza...">
+      <p style="font-size:0.72rem;color:var(--gray-500);margin-top:4px;">
+        写真からの自動読み取りに必要です。aistudio.google.com で無料取得できます。
+      </p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="doSaveSettings()">保存</button>
+      <button class="btn btn-outline" onclick="closeModal('settings-modal')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- Period Modal -->
+<div class="modal-overlay" id="period-modal">
+  <div class="modal">
+    <div class="modal-title">📅 表示期間を選択</div>
+    <div class="form-group">
+      <label class="lbl">開始日</label>
+      <input type="date" id="p-start" class="input">
+    </div>
+    <div class="form-group">
+      <label class="lbl">終了日</label>
+      <input type="date" id="p-end" class="input">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="applyPeriod()">適用</button>
+      <button class="btn btn-outline" onclick="closeModal('period-modal')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+let imgBase64 = null;
+let imgMime = 'image/jpeg';
+let timing = '';
+let chartInst = null;
+let histPeriod = 'week';
+let chartPeriod = 'week';
+let docStart = null, docEnd = null;
+
+// ── Storage ──
+const getRecords = () => JSON.parse(localStorage.getItem('bp_records') || '[]');
+const setRecords = d => localStorage.setItem('bp_records', JSON.stringify(d));
+const getSettings = () => JSON.parse(localStorage.getItem('bp_settings') || '{}');
+
+// ── Tabs ──
+function switchTab(t) {
+  const tabs = ['record','history','chart','doctor'];
+  document.querySelectorAll('.tab').forEach((el,i) => el.classList.toggle('active', tabs[i] === t));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + t).classList.add('active');
+  if (t === 'history') renderHistory(histPeriod);
+  if (t === 'chart') renderChart(chartPeriod);
+  if (t === 'doctor') renderDoctor();
+}
+
+// ── Upload ──
+function triggerFile() { document.getElementById('file-input').click(); }
+
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-area').classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadFile(f);
+}
+
+function onFileSelect(e) {
+  const f = e.target.files[0];
+  if (f) loadFile(f);
+}
+
+function loadFile(file) {
+  imgMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const url = e.target.result;
+    imgBase64 = url.split(',')[1];
+    document.getElementById('preview-img').src = url;
+    document.getElementById('upload-area').style.display = 'none';
+    document.getElementById('preview-area').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetUpload() {
+  imgBase64 = null;
+  document.getElementById('upload-area').style.display = 'block';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('entry-form').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
+// ── AI Analysis ──
+async function analyzeImage() {
+  const cfg = getSettings();
+  if (!cfg.apiKey) { toast('設定からAPI キーを入力してください'); openSettings(); return; }
+
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('loading-area').style.display = 'block';
+
+  // Convert image to JPEG via canvas for compatibility
+  let base64 = imgBase64;
+  let mime = 'image/jpeg';
+  try {
+    const cvs = document.createElement('canvas');
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res; img.onerror = rej;
+      img.src = document.getElementById('preview-img').src;
+    });
+    cvs.width = img.naturalWidth;
+    cvs.height = img.naturalHeight;
+    cvs.getContext('2d').drawImage(img, 0, 0);
+    const dataUrl = cvs.toDataURL('image/jpeg', 0.92);
+    base64 = dataUrl.split(',')[1];
+  } catch(e) { /* use original */ }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${cfg.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mime, data: base64 } },
+            { text: 'この画像は血圧計のディスプレイです。表示されている数値を読み取り、JSONのみ返してください（説明不要）:\n{"systolic":最高血圧,"diastolic":最低血圧,"pulse":脈拍}\n読み取れない値はnullにしてください。' }
+          ]
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.candidates[0].content.parts[0].text;
+    const m = text.match(/\{[\s\S]*?\}/);
+    if (!m) throw new Error('数値を読み取れませんでした');
+    const v = JSON.parse(m[0]);
+
+    document.getElementById('loading-area').style.display = 'none';
+    showForm(v.systolic, v.diastolic, v.pulse);
+    toast('読み取り完了！確認してください');
+  } catch(err) {
+    document.getElementById('loading-area').style.display = 'none';
+    document.getElementById('preview-area').style.display = 'block';
+    toast('エラー: ' + err.message);
+  }
+}
+
+// ── Entry Form ──
+function showForm(sys, dia, pul) {
+  document.getElementById('f-sys').value = sys ?? '';
+  document.getElementById('f-dia').value = dia ?? '';
+  document.getElementById('f-pul').value = pul ?? '';
+
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('f-date').value = now.toISOString().slice(0,16);
+
+  const h = new Date().getHours();
+  const auto = h < 9 ? '起床後' : h < 13 ? '朝食後' : h < 17 ? '昼' : h < 20 ? '夕食後' : '就寝前';
+  document.querySelectorAll('.t-opt').forEach(el => {
+    el.classList.toggle('sel', el.textContent === auto);
+  });
+  timing = auto;
+
+  document.getElementById('entry-form').style.display = 'block';
+  document.getElementById('entry-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selTiming(el, t) {
+  document.querySelectorAll('.t-opt').forEach(b => b.classList.remove('sel'));
+  el.classList.add('sel');
+  timing = t;
+}
+
+function saveRecord() {
+  const sys = parseInt(document.getElementById('f-sys').value);
+  const dia = parseInt(document.getElementById('f-dia').value);
+  const pul = parseInt(document.getElementById('f-pul').value);
+  const at = document.getElementById('f-date').value;
+  const note = document.getElementById('f-note').value.trim();
+
+  if (!sys || !dia || !pul) { toast('血圧と脈拍を入力してください'); return; }
+  if (!at) { toast('日時を入力してください'); return; }
+
+  const records = getRecords();
+  records.unshift({ id: Date.now().toString(), systolic: sys, diastolic: dia, pulse: pul, measuredAt: at, timing, note });
+  setRecords(records);
+
+  resetUpload();
+  document.getElementById('entry-form').style.display = 'none';
+  document.getElementById('f-note').value = '';
+  timing = '';
+  document.querySelectorAll('.t-opt').forEach(b => b.classList.remove('sel'));
+  toast('保存しました ✓');
+  switchTab('history');
+}
+
+// ── History ──
+function getFiltered(period, start, end) {
+  let records = getRecords();
+  const now = Date.now();
+  if (start && end) {
+    return records.filter(r => {
+      const d = new Date(r.measuredAt);
+      return d >= new Date(start) && d <= new Date(end + 'T23:59:59');
+    });
+  }
+  const cutoff = { week: 7, month: 30, '3months': 90 }[period];
+  if (!cutoff) return records;
+  const limit = new Date(now - cutoff * 86400000);
+  return records.filter(r => new Date(r.measuredAt) >= limit);
+}
+
+function setHistPeriod(p, btn) {
+  histPeriod = p;
+  document.querySelectorAll('#tab-history .p-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderHistory(p);
+}
+
+function renderHistory(period) {
+  const records = getFiltered(period);
+  const el = document.getElementById('history-list');
+  if (!records.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>記録がありません</div></div>';
+    return;
+  }
+  el.innerHTML = records.map(r => {
+    const d = new Date(r.measuredAt);
+    const ds = `${d.getMonth()+1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`;
+    const ts = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `
+      <div class="record-item">
+        <div class="r-date">
+          <div class="date">${ds}</div>
+          <div class="time">${ts}</div>
+          ${r.timing ? `<div class="r-badge">${esc(r.timing)}</div>` : ''}
+        </div>
+        <div class="r-vals">
+          <div class="r-val s"><div class="v">${r.systolic}</div><div class="l">最高</div></div>
+          <div class="sep">/</div>
+          <div class="r-val d"><div class="v">${r.diastolic}</div><div class="l">最低</div></div>
+          <div style="width:1px;background:var(--gray-200);margin:0 2px;height:32px;"></div>
+          <div class="r-val p"><div class="v">${r.pulse}</div><div class="l">脈拍</div></div>
+        </div>
+        <button class="del-btn" onclick="deleteRecord('${r.id}')">×</button>
+      </div>
+      ${r.note ? `<div class="note-line">${esc(r.note)}</div>` : ''}
+    `;
+  }).join('');
+}
+
+function deleteRecord(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  setRecords(getRecords().filter(r => r.id !== id));
+  renderHistory(histPeriod);
+  toast('削除しました');
+}
+
+// ── Chart ──
+function setChartPeriod(p, btn) {
+  chartPeriod = p;
+  document.querySelectorAll('#tab-chart .p-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChart(p);
+}
+
+function renderChart(period) {
+  const records = getFiltered(period).slice().reverse();
+  const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null;
+
+  if (!records.length) {
+    ['sys','dia','pul'].forEach(k => {
+      document.getElementById('avg-' + k).textContent = '--';
+      document.getElementById('rng-' + k).textContent = '';
+    });
+    if (chartInst) { chartInst.destroy(); chartInst = null; }
+    return;
+  }
+
+  const sysl = records.map(r => r.systolic);
+  const dial = records.map(r => r.diastolic);
+  const pull = records.map(r => r.pulse);
+
+  document.getElementById('avg-sys').textContent = avg(sysl);
+  document.getElementById('avg-dia').textContent = avg(dial);
+  document.getElementById('avg-pul').textContent = avg(pull);
+  document.getElementById('rng-sys').textContent = `${Math.min(...sysl)} – ${Math.max(...sysl)}`;
+  document.getElementById('rng-dia').textContent = `${Math.min(...dial)} – ${Math.max(...dial)}`;
+  document.getElementById('rng-pul').textContent = `${Math.min(...pull)} – ${Math.max(...pull)}`;
+
+  const labels = records.map(r => {
+    const d = new Date(r.measuredAt);
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  });
+
+  const ctx = document.getElementById('bp-chart').getContext('2d');
+  if (chartInst) chartInst.destroy();
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'最高血圧', data:sysl, borderColor:'#dc2626', backgroundColor:'rgba(220,38,38,0.08)', tension:0.3, pointRadius:4, fill:false },
+        { label:'最低血圧', data:dial, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.08)', tension:0.3, pointRadius:4, fill:false },
+        { label:'脈拍',    data:pull, borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.08)',  tension:0.3, pointRadius:4, fill:false }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ display:false } },
+      scales: {
+        y: { min:40, grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{size:11} } },
+        x: { grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{size:10}, maxTicksLimit:10 } }
+      }
+    }
+  });
+}
+
+// ── Doctor View ──
+function renderDoctor() {
+  const records = getFiltered(null, docStart, docEnd || (docStart ? null : null)).length
+    ? getFiltered(null, docStart, docEnd)
+    : getFiltered('month');
+
+  const sorted = records.slice().reverse();
+  const cfg = getSettings();
+  const el = document.getElementById('doc-card');
+
+  if (!sorted.length) {
+    el.innerHTML = '<div class="empty" style="padding:40px;"><div class="empty-icon">🏥</div><div>記録がありません</div></div>';
+    return;
+  }
+
+  const sysl = sorted.map(r=>r.systolic), dial = sorted.map(r=>r.diastolic), pull = sorted.map(r=>r.pulse);
+  const avg = arr => Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+  const as = avg(sysl), ad = avg(dial);
+
+  let cls='bp-normal', lbl='正常範囲';
+  if (as >= 140 || ad >= 90) { cls='bp-high2'; lbl='高血圧 II度以上'; }
+  else if (as >= 130 || ad >= 80) { cls='bp-high1'; lbl='高血圧 I度'; }
+  else if (as >= 120) { cls='bp-elevated'; lbl='正常高値'; }
+
+  const fd = new Date(sorted[0].measuredAt), ld = new Date(sorted[sorted.length-1].measuredAt);
+  const fmt = d => `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  const recent = [...sorted].reverse().slice(0, 14);
+
+  el.innerHTML = `
+    <div class="doc-header">
+      <h2>血圧記録表${cfg.userName ? ' — ' + esc(cfg.userName) : ''}</h2>
+      <div class="dr">${fmt(fd)} ～ ${fmt(ld)}（${sorted.length}回測定）</div>
+      <span class="bp-badge ${cls}">${lbl}</span>
+    </div>
+    <div class="doc-stats">
+      <div class="doc-stat sys">
+        <div class="dl">最高血圧 平均</div>
+        <div class="dv">${avg(sysl)}</div>
+        <div class="ds">${Math.min(...sysl)}–${Math.max(...sysl)} mmHg</div>
+      </div>
+      <div class="doc-stat dia">
+        <div class="dl">最低血圧 平均</div>
+        <div class="dv">${avg(dial)}</div>
+        <div class="ds">${Math.min(...dial)}–${Math.max(...dial)} mmHg</div>
+      </div>
+      <div class="doc-stat pul">
+        <div class="dl">脈拍 平均</div>
+        <div class="dv">${avg(pull)}</div>
+        <div class="ds">${Math.min(...pull)}–${Math.max(...pull)} 拍/分</div>
+      </div>
+    </div>
+    <div style="padding:14px;">
+      <div style="font-size:0.72rem;font-weight:700;color:var(--gray-500);margin-bottom:8px;">直近の記録（最新${recent.length}件）</div>
+      <table class="doc-table">
+        <thead><tr><th>日時</th><th>タイミング</th><th style="color:#dc2626">最高</th><th style="color:#2563eb">最低</th><th style="color:#16a34a">脈拍</th></tr></thead>
+        <tbody>${recent.map(r => {
+          const d = new Date(r.measuredAt);
+          const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          return `<tr><td>${ds}</td><td>${esc(r.timing||'—')}</td><td class="sv">${r.systolic}</td><td class="dv2">${r.diastolic}</td><td class="pv">${r.pulse}</td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── Settings ──
+function openSettings() {
+  const s = getSettings();
+  document.getElementById('s-name').value = s.userName || '';
+  document.getElementById('s-apikey').value = s.apiKey || '';
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function doSaveSettings() {
+  const s = { userName: document.getElementById('s-name').value.trim(), apiKey: document.getElementById('s-apikey').value.trim() };
+  localStorage.setItem('bp_settings', JSON.stringify(s));
+  closeModal('settings-modal');
+  toast('設定を保存しました');
+}
+
+// ── Period Modal ──
+function openPeriodModal() {
+  const today = new Date().toISOString().split('T')[0];
+  const month = new Date(Date.now() - 30*86400000).toISOString().split('T')[0];
+  document.getElementById('p-start').value = docStart || month;
+  document.getElementById('p-end').value = docEnd || today;
+  document.getElementById('period-modal').classList.add('open');
+}
+
+function applyPeriod() {
+  docStart = document.getElementById('p-start').value;
+  docEnd = document.getElementById('p-end').value;
+  closeModal('period-modal');
+  renderDoctor();
+}
+
+// ── Utils ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('f-date').value = now.toISOString().slice(0,16);
+
+  // Close modals on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+  });
+});
+</script>
+</body>
+</html>
